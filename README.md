@@ -77,9 +77,9 @@ EMS/
                   │                 Azure Cloud (rg-ems-dev)                    │
                   │                                                             │
                   │   ┌─────────────────────────────────────────────────────┐   │
-                  │   │        Azure Kubernetes Service (aks-ems-dev)        │   │
-  Browser ────────┼──►│  Frontend LoadBalancer (Port 80)                     │   │
-                  │   │    └─► Pods (ems-frontend x2)                      │   │
+                  │   │        Azure Kubernetes Service (aks-ems-dev)       │   │
+  Browser ────────┼──►│  Frontend LoadBalancer (Port 80)                    │   │
+                  │   │    └─► Pods (ems-frontend x2)                       │   │
                   │   │          │                                          │   │
                   │   │          ▼ (ClusterIP: ems-backend:8000)            │   │
                   │   │        Pods (ems-backend x2)                        │   │
