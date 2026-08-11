@@ -152,10 +152,11 @@ pipeline {
         // ============================================================
 
         stage('Update GitOps Repository') {
+
             steps {
-            
+
                 dir('gitops') {
-                
+
                     deleteDir()
 
                     git(
@@ -170,7 +171,7 @@ pipeline {
                             gitToolName: 'Default'
                         )
                     ]) {
-                    
+
                         sh """
                             echo "======================================"
                             echo "Updating GitOps repository"
@@ -207,6 +208,7 @@ pipeline {
                             grep "image:" k8s/frontend-deployment.yaml
 
 
+                            # Configure Git identity
                             git config user.name "Jenkins"
                             git config user.email "jenkins@localhost"
 
@@ -216,11 +218,13 @@ pipeline {
                             git diff
 
 
+                            # Stage Kubernetes manifest changes
                             git add \
                                 k8s/backend-deployment.yaml \
                                 k8s/frontend-deployment.yaml
 
 
+                            # Commit changes
                             git commit \
                                 -m "chore: update EMS images to build ${IMAGE_TAG}"
 
@@ -235,6 +239,7 @@ pipeline {
             }
         }
     }
+
 
     // ================================================================
     // POST ACTIONS
@@ -261,7 +266,7 @@ pipeline {
               Argo CD synchronizes Kubernetes
               Kubernetes deploys the new EMS version
 
-            // Jenkins does NOT directly deploy to Kubernetes.
+            Jenkins does NOT directly deploy to Kubernetes.
             ================================================
             """
         }
