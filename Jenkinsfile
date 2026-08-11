@@ -152,11 +152,10 @@ pipeline {
         // ============================================================
 
         stage('Update GitOps Repository') {
-
             steps {
-
+            
                 dir('gitops') {
-
+                
                     deleteDir()
 
                     git(
@@ -165,72 +164,77 @@ pipeline {
                         credentialsId: "${GITOPS_CREDENTIALS}"
                     )
 
+                    withCredentials([
+                        gitUsernamePassword(
+                            credentialsId: "${GITOPS_CREDENTIALS}",
+                            gitToolName: 'Default'
+                        )
+                    ]) {
+                    
+                        sh """
+                            echo "======================================"
+                            echo "Updating GitOps repository"
+                            echo "Build Number: ${IMAGE_TAG}"
+                            echo "======================================"
 
-                    sh """
-                        echo "======================================"
-                        echo "Updating GitOps repository"
-                        echo "Build Number: ${IMAGE_TAG}"
-                        echo "======================================"
+                            echo ""
+                            echo "Current backend image:"
+                            grep "image:" k8s/backend-deployment.yaml
 
-                        echo ""
-                        echo "Current backend image:"
-                        grep "image:" k8s/backend-deployment.yaml
-
-                        echo ""
-                        echo "Current frontend image:"
-                        grep "image:" k8s/frontend-deployment.yaml
-
-
-                        # Update backend image
-                        sed -i \
-                            "s|image: ${BACKEND_IMAGE}:.*|image: ${BACKEND_IMAGE}:${IMAGE_TAG}|" \
-                            k8s/backend-deployment.yaml
-
-
-                        # Update frontend image
-                        sed -i \
-                            "s|image: ${FRONTEND_IMAGE}:.*|image: ${FRONTEND_IMAGE}:${IMAGE_TAG}|" \
-                            k8s/frontend-deployment.yaml
+                            echo ""
+                            echo "Current frontend image:"
+                            grep "image:" k8s/frontend-deployment.yaml
 
 
-                        echo ""
-                        echo "Updated backend image:"
-                        grep "image:" k8s/backend-deployment.yaml
-
-                        echo ""
-                        echo "Updated frontend image:"
-                        grep "image:" k8s/frontend-deployment.yaml
+                            # Update backend image
+                            sed -i \
+                                "s|image: ${BACKEND_IMAGE}:.*|image: ${BACKEND_IMAGE}:${IMAGE_TAG}|" \
+                                k8s/backend-deployment.yaml
 
 
-                        # Configure Git identity
-                        git config user.name "Jenkins"
-                        git config user.email "jenkins@localhost"
+                            # Update frontend image
+                            sed -i \
+                                "s|image: ${FRONTEND_IMAGE}:.*|image: ${FRONTEND_IMAGE}:${IMAGE_TAG}|" \
+                                k8s/frontend-deployment.yaml
 
 
-                        # Show changes
-                        echo ""
-                        echo "Git changes:"
-                        git diff
+                            echo ""
+                            echo "Updated backend image:"
+                            grep "image:" k8s/backend-deployment.yaml
+
+                            echo ""
+                            echo "Updated frontend image:"
+                            grep "image:" k8s/frontend-deployment.yaml
 
 
-                        # Commit changes
-                        git add \
-                            k8s/backend-deployment.yaml \
-                            k8s/frontend-deployment.yaml
+                            git config user.name "Jenkins"
+                            git config user.email "jenkins@localhost"
 
 
-                        git commit \
-                            -m "chore: update EMS images to build ${IMAGE_TAG}"
+                            echo ""
+                            echo "Git changes:"
+                            git diff
 
 
-                        # Push changes to GitOps repository
-                        git push origin ${GITOPS_BRANCH}
-                    """
+                            git add \
+                                k8s/backend-deployment.yaml \
+                                k8s/frontend-deployment.yaml
+
+
+                            git commit \
+                                -m "chore: update EMS images to build ${IMAGE_TAG}"
+
+
+                            echo ""
+                            echo "Pushing GitOps changes..."
+
+                            git push origin ${GITOPS_BRANCH}
+                        }
+                    }
                 }
             }
         }
     }
-
 
     // ================================================================
     // POST ACTIONS
