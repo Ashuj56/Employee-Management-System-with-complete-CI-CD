@@ -87,21 +87,6 @@ pipeline {
             }
         }
 
-        // ── 7. Deploy to Kubernetes ────────────────────────────────────────
-        stage('Deploy to Kubernetes') {
-            steps {
-
-                sh "kubectl apply -f k8s/"
-                // Update the image tags in the live deployments (rolling update)
-                sh "kubectl set image deployment/ems-backend ems-backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}"
-                sh "kubectl set image deployment/ems-frontend ems-frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}"
-
-                // Wait for rollouts to complete
-                sh "kubectl rollout status deployment/ems-backend -n ${K8S_NAMESPACE} --timeout=120s"
-                sh "kubectl rollout status deployment/ems-frontend -n ${K8S_NAMESPACE} --timeout=120s"
-            }
-        }
-
     }
 
     post {
