@@ -4,23 +4,16 @@ pipeline {
 
     environment {
         DOCKER_HUB_USER = "ctslab"
-
-        BACKEND_IMAGE  = "${DOCKER_HUB_USER}/ems-backend"
+        BACKEND_IMAGE = "${DOCKER_HUB_USER}/ems-backend"
         FRONTEND_IMAGE = "${DOCKER_HUB_USER}/ems-frontend"
-
         IMAGE_TAG = "${BUILD_NUMBER}"
 
         GITOPS_REPO = "https://github.com/Ashuj56/Employee-Management-System-Using-GitOps-ArgoCD.git"
         GITOPS_BRANCH = "main"
-
         GITOPS_CREDENTIALS = "github-gitops"
     }
 
     stages {
-
-        // ============================================================
-        // 1. CHECKOUT APPLICATION REPOSITORY
-        // ============================================================
 
         stage('Checkout') {
             steps {
@@ -28,44 +21,29 @@ pipeline {
             }
         }
 
-
-        // ============================================================
-        // 2. BUILD BACKEND DOCKER IMAGE
-        // ============================================================
-
         stage('Build Backend') {
             steps {
                 dir('backend') {
                     sh """
                         docker build \
-                            -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
-                            -t ${BACKEND_IMAGE}:latest .
+                        -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
+                        -t ${BACKEND_IMAGE}:latest .
                     """
                 }
             }
         }
-
-
-        // ============================================================
-        // 3. BUILD FRONTEND DOCKER IMAGE
-        // ============================================================
 
         stage('Build Frontend') {
             steps {
                 dir('frontend') {
                     sh """
                         docker build \
-                            -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
-                            -t ${FRONTEND_IMAGE}:latest .
+                        -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
+                        -t ${FRONTEND_IMAGE}:latest .
                     """
                 }
             }
         }
-
-
-        // ============================================================
-        // 4. VERIFY LOCAL DOCKER IMAGES
-        // ============================================================
 
         stage('Verify Docker Images') {
             steps {
@@ -76,14 +54,8 @@ pipeline {
             }
         }
 
-
-        // ============================================================
-        // 5. DOCKER HUB LOGIN
-        // ============================================================
-
         stage('Docker Login') {
             steps {
-
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockercreds',
@@ -91,10 +63,8 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-
                     sh '''
-                        echo "$DOCKER_PASS" | \
-                        docker login \
+                        echo "$DOCKER_PASS" | docker login \
                         -u "$DOCKER_USER" \
                         --password-stdin
                     '''
@@ -102,13 +72,7 @@ pipeline {
             }
         }
 
-
-        // ============================================================
-        // 6. PUSH DOCKER IMAGES
-        // ============================================================
-
         stage('Docker Push') {
-
             parallel {
 
                 stage('Push Backend') {
@@ -131,14 +95,8 @@ pipeline {
             }
         }
 
-
-        // ============================================================
-        // 7. VERIFY DOCKER HUB PUSH
-        // ============================================================
-
         stage('Verify Docker Hub Push') {
             steps {
-
                 sh """
                     docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
                     docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
@@ -146,13 +104,7 @@ pipeline {
             }
         }
 
-
-        // ============================================================
-        // 8. UPDATE GITOPS REPOSITORY
-        // ============================================================
-
         stage('Update GitOps Repository') {
-
             steps {
 
                 dir('gitops') {
@@ -173,134 +125,37 @@ pipeline {
                     ]) {
 
                         sh """
-                            echo "======================================"
-                            echo "Updating GitOps repository"
-                            echo "Build Number: ${IMAGE_TAG}"
-                            echo "======================================"
+                            sed -i "s|image: ${BACKEND_IMAGE}:.*|image: ${BACKEND_IMAGE}:${IMAGE_TAG}|" k8s/backend-deployment.yaml
 
-                            echo ""
-                            echo "Current backend image:"
-                            grep "image:" k8s/backend-deployment.yaml
+                            sed -i "s|image: ${FRONTEND_IMAGE}:.*|image: ${FRONTEND_IMAGE}:${IMAGE_TAG}|" k8s/frontend-deployment.yaml
 
-                            echo ""
-                            echo "Current frontend image:"
-                            grep "image:" k8s/frontend-deployment.yaml
-
-
-                            # Update backend image
-                            sed -i \
-                                "s|image: ${BACKEND_IMAGE}:.*|image: ${BACKEND_IMAGE}:${IMAGE_TAG}|" \
-                                k8s/backend-deployment.yaml
-
-
-                            # Update frontend image
-                            sed -i \
-                                "s|image: ${FRONTEND_IMAGE}:.*|image: ${FRONTEND_IMAGE}:${IMAGE_TAG}|" \
-                                k8s/frontend-deployment.yaml
-
-
-                            echo ""
-                            echo "Updated backend image:"
-                            grep "image:" k8s/backend-deployment.yaml
-
-                            echo ""
-                            echo "Updated frontend image:"
-                            grep "image:" k8s/frontend-deployment.yaml
-
-
-                            # Configure Git identity
                             git config user.name "Jenkins"
                             git config user.email "jenkins@localhost"
 
+                            git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
 
-                            echo ""
-                            echo "Git changes:"
-                            git diff
-
-
-                            # Stage Kubernetes manifest changes
-                            git add \
-                                k8s/backend-deployment.yaml \
-                                k8s/frontend-deployment.yaml
-
-
-                            # Commit changes
-                            git commit \
-                                -m "chore: update EMS images to build ${IMAGE_TAG}"
-
-
-                            echo ""
-                            echo "Pushing GitOps changes..."
+                            git commit -m "Update EMS images to build ${IMAGE_TAG}"
 
                             git push origin ${GITOPS_BRANCH}
-                        }
+                        """
                     }
                 }
             }
         }
     }
 
-
-    // ================================================================
-    // POST ACTIONS
-    // ================================================================
-
     post {
 
         success {
-
-            echo """
-            // ================================================
-            EMS CI + GitOps Pipeline Completed Successfully
-            // ================================================
-
-            Docker Images:
-              ${BACKEND_IMAGE}:${IMAGE_TAG}
-              ${FRONTEND_IMAGE}:${IMAGE_TAG}
-
-            GitOps Repository:
-              ${GITOPS_REPO}
-
-            Next:
-              Argo CD detects the GitOps change
-              Argo CD synchronizes Kubernetes
-              Kubernetes deploys the new EMS version
-
-            Jenkins does NOT directly deploy to Kubernetes.
-            // ================================================
-            """
+            echo "EMS CI + GitOps pipeline completed successfully"
         }
-
 
         failure {
-
-            echo """
-            // ================================================
-            EMS Pipeline Failed
-            // ================================================
-
-            Check the failed stage above.
-
-            // ================================================
-            """
+            echo "EMS pipeline failed"
         }
-
-
-        unstable {
-            echo 'Pipeline Unstable'
-        }
-
-
-        aborted {
-            echo 'Pipeline Aborted'
-        }
-
 
         always {
-
-            sh """
-                docker image prune -f
-            """
+            sh "docker image prune -f"
         }
     }
 }
