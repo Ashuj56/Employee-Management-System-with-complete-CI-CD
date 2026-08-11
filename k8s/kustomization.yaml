@@ -12,6 +12,5 @@ namespace: ems
 resources:
   - namespace.yaml
   - configmap.yaml
-  - secret.yaml
   - backend-deployment.yaml
   - frontend-deployment.yaml
