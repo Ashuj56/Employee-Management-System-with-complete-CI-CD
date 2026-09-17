@@ -72,26 +72,76 @@ EMS/
 
 ## ⚙️ Architecture
 
+```mermaid
+flowchart LR
+  subgraph DEV["Development"]
+    UDEV["Developer Workstation"]
+    LFE["EMS Frontend (React/Vite)"]
+    LBE["EMS Backend (Flask)"]
+    UDEV --> LFE
+    UDEV --> LBE
+  end
+
+  subgraph SCM["Source Control"]
+    GH["GitHub Repository\nAshuj56/Employee-Management-System-with-complete-CI-CD"]
+  end
+
+  subgraph CICD["CI/CD"]
+    JENK["Jenkins Pipeline\n(Jenkinsfile)"]
+    BBE["Build Docker Image\nems-backend"]
+    BFE["Build Docker Image\nems-frontend"]
+    DH["Docker Hub\nctslab/ems-backend & ctslab/ems-frontend"]
+    ACR["Azure Container Registry\nacremsdev"]
+    K8S_MANIFESTS["Kubernetes Manifests/Kustomize\nk8s/*.yaml + kustomization.yaml"]
+    JENK --> BBE
+    JENK --> BFE
+    BBE --> DH
+    BFE --> DH
+    BBE --> ACR
+    BFE --> ACR
+    JENK --> K8S_MANIFESTS
+  end
+
+  subgraph INFRA["Infrastructure Provisioning (Terraform IaC)"]
+    TF["Terraform\ninfra/ modules"]
+    RG["Azure Resource Group\nrg-ems-dev"]
+    VNET["VNet/Subnet Networking"]
+    AKS["AKS Cluster\naks-ems-dev"]
+    KV["Azure Key Vault\nkv-ems-dev"]
+    SQL["Azure SQL\nemserver / Emdb"]
+    MON["Monitoring\nLog Analytics + Container Insights"]
+    TF --> RG --> VNET --> AKS
+    TF --> KV
+    TF --> SQL
+    TF --> MON
+  end
+
+  subgraph RUNTIME["Runtime / Deployment on AKS"]
+    LB["Frontend Service\nLoadBalancer :80"]
+    FPODS["EMS Frontend Pods x2"]
+    BSVC["Backend Service\nClusterIP :8000"]
+    BPODS["EMS Backend Pods x2"]
+    LB --> FPODS --> BSVC --> BPODS
+  end
+
+  subgraph USER["User Access"]
+    BROWSER["End User Browser"]
+  end
+
+  UDEV --> GH
+  GH --> JENK
+  GH --> TF
+  K8S_MANIFESTS --> AKS
+  DH --> AKS
+  ACR --> AKS
+  AKS --> LB
+  BPODS --> SQL
+  KV --> AKS
+  MON --> AKS
+  BROWSER --> LB
 ```
-                  ┌─────────────────────────────────────────────────────────────┐
-                  │                 Azure Cloud (rg-ems-dev)                    │
-                  │                                                             │
-                  │   ┌─────────────────────────────────────────────────────┐   │
-                  │   │        Azure Kubernetes Service (aks-ems-dev)       │   │
-  Browser ────────┼──►│  Frontend LoadBalancer (Port 80)                    │   │
-                  │   │    └─► Pods (ems-frontend x2)                       │   │
-                  │   │          │                                          │   │
-                  │   │          ▼ (ClusterIP: ems-backend:8000)            │   │
-                  │   │        Pods (ems-backend x2)                        │   │
-                  │   └──────────┬──────────────────────────────────────────┘   │
-                  │              │                                              │
-                  │              ▼ (Secure VNet Endpoint)                       │
-                  │   ┌──────────────────────────────┐                          │
-                  │   │ Azure SQL Server (emserver)  │                          │
-                  │   │   └─► Database (Emdb)        │                          │
-                  │   └──────────────────────────────┘                          │
-                  └─────────────────────────────────────────────────────────────┘
-```
+
+**Flow summary:** Developers build and test EMS frontend/backend locally, then push source to GitHub. **Terraform** provisions Azure infrastructure (AKS, networking, Key Vault, Azure SQL, monitoring), while **Jenkins** handles application CI/CD (build/push container images and apply/update Kubernetes manifests on AKS). End users access the frontend through the AKS LoadBalancer, which routes traffic to frontend and backend services connected to Azure SQL.
 
 ---
 
